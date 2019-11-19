@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no">
+    <link rel="stylesheet" href="https://js.arcgis.com/4.13/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.13/"></script>
+    <script src="https://code.jquery.com/jquery-3.4.1.js" integrity="sha256-WpOohJOqMqqyKL9FccASB9O0KwACQJpFTUBLTYOVvVU=" crossorigin="anonymous"></script>
+
+    <script>
+        require([
+            "esri/Map",
+            "esri/views/MapView",
+            "esri/layers/FeatureLayer",
+            "esri/layers/GraphicsLayer",
+            "esri/widgets/Measurement",
+            "esri/widgets/Sketch"
+
+        ], 
+        
+        function(Map, MapView, FeatureLayer, GraphicsLayer, Measurement, Sketch) {
+            var graphicsLayer = new GraphicsLayer();
+            var map = new Map({
+                basemap: "topo-vector",
+                layers: [graphicsLayer]
+
+            });
+
+            var view = new MapView({
+                container: "viewDiv",
+                map: map,
+                center: [146.816956, -19.258965], // longitude, latitude
+                zoom: 11
+            });
+
+            var sketch = new Sketch({
+                view: view,
+                layer: graphicsLayer
+            });
+
+            var template = {
+          // autocasts as new PopupTemplate()
+                title: "File name: {NAME}",
+                content: [
+                    {
+                    // It is also possible to set the fieldInfos outside of the content
+                    // directly in the popupTemplate. If no fieldInfos is specifically set
+                    // in the content, it defaults to whatever may be set within the popupTemplate.
+                        type: "fields",
+                        fieldInfos: [
+                            {
+                                fieldName: "ImageLink",
+                                label: "URL"
+                             }
+                        ]
+                    }
+                ]
+            };
+            
+            /*  var _TileInfoTemplate = new InfoTemplate();
+            _TileInfoTemplate.setTitle("<b>2016 Tile Info</b>");
+            var _TileInfoContent =
+            "<div class=\"demographicInfoContent\">" +
+            "<div class='demographicNumericPadding'>${NAME}</div><div class=\"demographicInnerSpacing\"></div><br>" +
+            "<div class='demographicNumericPadding'>${ImageLink}</div><div class=\"demographicInnerSpacing\"></div><br>" +
+            "</div>";
+            _TileInfoTemplate.setContent("Tile:<br>${Name} , ${ImageLink}<br>" + _TileInfoContent); */
+
+
+            // Feature layers
+
+            var propertyLayer = new FeatureLayer({
+                url: 'https://services6.arcgis.com/3VCE6mezZtwKJeIR/arcgis/rest/services/TCC_Properties/FeatureServer/0',
+                popupTemplate: template,
+                opacity: 0.2
+            });
+            map.add(propertyLayer);
+
+            var blocksLayer = new FeatureLayer({
+                url: 'https://services6.arcgis.com/3VCE6mezZtwKJeIR/arcgis/rest/services/Imagery_2016_Index/FeatureServer/0',
+                popupTemplate: template,
+                opacity: 0.2
+            });
+            map.add(blocksLayer);
+            // End feature layers
+
+            view.ui.add("buttonDiv", "bottom-right");
+            view.ui.add(sketch, "top-right");
+            document.getElementById('selectTiles').onclick = function() {
+                selectTiles(graphicsLayer, view, blocksLayer);
+            };
+
+        });
+
+        function selectTiles(gL,view,tileLayer){
+            //console.log("hello" + gL.graphics.length);
+            var geom = gL.graphics.items[0].geometry;
+            view.whenLayerView(tileLayer).then(function(layerView) {
+            // do something with the layerView
+                layerView.effect =  {
+                                    filter: { geometry: geom, spatialRelationship: "intersects" },
+                                    excludedEffect: "grayscale(0%) opacity(20%)",
+                                    includedEffect: "grayscale(0%) opacity(100%)"
+                                    }});
+     
+            tileLayer.queryFeatures( {geometry: geom,  spatialRelationship: "intersects", returnGeometry: true, outFields: ["ImageLink","NAME"]})
+            .then(function(featureSet) {
+
+                var array1 = featureSet.features
+                //console.log("found feature count : " + array1.length);
+                //console.log(featureSet.features);
+                //console.log( JSON.stringify(featureSet.features) );
+                var callUrls = [];
+                    featureSet.features.forEach(function (features) {
+                    callUrls.push(features.attributes["Name"]);
+                });
+                //console.log(callUrls);
+
+                var xhr = new XMLHttpRequest();
+                    xhr.open("POST", 'https://bentestcode.free.beeceptor.com', true);
+                    xhr.setRequestHeader('Content-Type', 'application/json');
+                    xhr.send(JSON.stringify({
+                    value: callUrls
+                }));
+
+                //open popup of query result
+                view.popup.open({location: geom.centroid, features: featureSet.features,featureMenuOpen: true}); 
+                }); 
+        }
+            /*
+
+            var myJsonString = JSON.stringify(featureSet.features);
+            alert (myJsonString);
+                var OutputJSON = featureSet.features;
+                OutputJSON.forEach(URLtoJSON);
+
+                function URLtoJSON(item) {
+                document.getElementById("demo").innerHTML += index + ":" + item + "<br>";
+            }*/
+
+        function validate() {
+    
+            if( document.emailForm.email.value == "" ) {
+                console.log("no email");
+                alert( "Please provide your Email!" );
+                document.emailForm.email.focus() ;
+                return false;
+            }
+            return( true );
+        }
+
+    </script>
+        <title>Townsville tiles picker</title>
+        <style>
+            html,
+            body,
+            #viewDiv {
+                padding: 0;
+                margin: 0;
+                height: 100%;
+                width: 100%;
+            }
+            
+            #buttonDiv {
+                background-color: white;
+                color: black;
+                padding: 6px;
+                max-width: 400px;
+            }
+
+            input[type=text], select {
+                width: 100%;
+                padding: 12px 20px;
+                margin: 8px 0;
+                display: inline-block;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                box-sizing: border-box;
+            }
+
+            #selectTiles {
+                width: 100%;
+                background-color: #4CAF50;
+                color: white;
+                padding: 14px 20px;
+                margin: 8px 0;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+
+            #selectTiles:hover {
+                background-color: #45a049;
+            }
+        </style>
+
+</head>
+<body>
+    <div id="viewDiv"></div>
+        <div id="buttonDiv" class="esri-widget">
+                <p>
+                    Select an area on the map, add your email address and click below to be sent a download link.
+                </p>
+                <form id="emailForm">
+                    
+                    <label for="email">Email address</label>
+                    <input type="text" id="email" name="emailaddress" required placeholder="Your email address..">
+                    <input type="checkbox" name="vehicle1" value="Bike"> Agree to TCC's terms of use<br>
+                  </form>
+                    <button id="selectTiles" idclass="btn-clear">Select Tiles</button>
+            </select>
+        </div>
+</body>
+</html>

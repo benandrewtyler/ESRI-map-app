@@ -1,0 +1,7 @@
+Validate email address, make mandatory
+TCC branding
+send email address with POST
+<!-- Change JSON POST to file name from URL -->
+<!-- Add disclamer tickbox -->
+Create terms of use modal
+
