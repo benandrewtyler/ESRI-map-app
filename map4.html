@@ -19,7 +19,7 @@
             "esri/widgets/Sketch"
 
         ], 
-        
+
         function(Map, MapView, FeatureLayer, GraphicsLayer, Measurement, Sketch) {
             var graphicsLayer = new GraphicsLayer();
             var map = new Map({
@@ -89,9 +89,11 @@
             view.ui.add("buttonDiv", "bottom-right");
             view.ui.add(sketch, "top-right");
             document.getElementById('selectTiles').onclick = function() {
+                validate();
+                addEmailToArray();
+                //MergeArrays();
                 selectTiles(graphicsLayer, view, blocksLayer);
             };
-
         });
 
         function selectTiles(gL,view,tileLayer){
@@ -118,12 +120,16 @@
                 });
                 //console.log(callUrls);
 
+                
+
                 var xhr = new XMLHttpRequest();
                     xhr.open("POST", 'https://bentestcode.free.beeceptor.com', true);
                     xhr.setRequestHeader('Content-Type', 'application/json');
-                    xhr.send(JSON.stringify({
-                    value: callUrls
-                }));
+                    xhr.send(JSON.stringify({TileNames: callUrls}));
+                    //xhr.send(JSON.stringify({Names:callUrls,Email:emailAddressArray});
+
+                    //{'Names':JSON.stringify(callUrls),'Email':JSON.stringify(emailAddressArray)}
+                    //JSON.stringify({mycol:mycol,mycolval:mycolval,string:string}),
 
                 //open popup of query result
                 view.popup.open({location: geom.centroid, features: featureSet.features,featureMenuOpen: true}); 
@@ -144,12 +150,28 @@
     
             if( document.emailForm.email.value == "" ) {
                 console.log("no email");
-                alert( "Please provide your Email!" );
-                document.emailForm.email.focus() ;
+                alert( "Please provide your Email address." );
+                document.emailForm.email.focus();
                 return false;
             }
-            return( true );
+            return( true );         
         }
+
+        function addEmailToArray() {
+            var emailAddressArray = [];
+            var emailAddress = document.getElementById("email").value;
+            emailAddressArray.push(emailAddress);
+            console.log(emailAddress);
+            console.log(emailAddressArray);
+            
+        }
+
+        function MergeArrays() {
+            var callToSend = callUrls.concat(emailAddressArray); 
+            console.log(callToSend);
+        }
+
+          
 
     </script>
         <title>Townsville tiles picker</title>
@@ -203,7 +225,7 @@
                 <p>
                     Select an area on the map, add your email address and click below to be sent a download link.
                 </p>
-                <form id="emailForm">
+                <form id="emailForm" name="emailForm">
                     
                     <label for="email">Email address</label>
                     <input type="text" id="email" name="emailaddress" required placeholder="Your email address..">
