@@ -1,31 +1,77 @@
 <!DOCTYPE html>
-
 <html>
-
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no">
     <link rel="stylesheet" href="https://js.arcgis.com/4.13/esri/themes/light/main.css">
     <script src="https://js.arcgis.com/4.13/"></script>
     <script src="https://code.jquery.com/jquery-3.4.1.js" integrity="sha256-WpOohJOqMqqyKL9FccASB9O0KwACQJpFTUBLTYOVvVU=" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+    <!-- <link rel="stylesheet" href="D:\Users\bwt\Desktop\Style.css" /> -->
 
     <script>
+        let params = (new URL(document.location)).searchParams;
+        let tileIndex = params.get("tileIndex");
+
+        var tileLayers = {
+                            Layers: [
+                                    {
+                                        "container": "lidar",
+                                        "TileIndex": "TileIndex_LiDAR_2009",
+                                        "BlobPath": "2009/Tiles"
+                                    },          
+                                    {
+                                        "container": "lidar",
+                                        "TileIndex": "TileIndex_LiDAR_2010",
+                                        "BlobPath": "2010/DEM/Tiles"
+                                    },
+                                    {
+                                        "container": "lidar",
+                                        "TileIndex": "TileIndex_LiDAR_2011",
+                                        "BlobPath": "2011/DEM/Tiles"
+                                    },
+                                    {
+                                        "container": "lidar",
+                                        "TileIndex": "TileIndex_LiDAR_2012",
+                                        "BlobPath": "2012/DEM/Tiles"
+                                    },
+                                    {
+                                        "container": "lidar",
+                                        "TileIndex": "TileIndex_LiDAR_2016_Coastal",
+                                        "BlobPath": "2016/DEM/Coastal/Tiles/"
+                                    },
+                                    {
+                                        "container": "lidar",
+                                        "TileIndex": "TileIndex_LiDAR_2016_Urban",
+                                        "BlobPath": "2016/DEM/Urban/Tiles/"
+                                    },
+                                    {
+                                        "container": "aerial",
+                                        "TileIndex": "Aerial 2016 Index",
+                                        "BlobPath": "2016/Tiles"
+                                    }
+                     ]
+        };
+
+                  
+
         require([
             "esri/Map",
             "esri/views/MapView",
             "esri/layers/FeatureLayer",
             "esri/layers/GraphicsLayer",
             "esri/widgets/Measurement",
-            "esri/widgets/Sketch"
+            "esri/widgets/Sketch",
+            "esri/widgets/Home"
 
         ], 
 
-        function(Map, MapView, FeatureLayer, GraphicsLayer, Measurement, Sketch) {
+        function(Map, MapView, FeatureLayer, GraphicsLayer, Measurement, Sketch, Home) {
             var graphicsLayer = new GraphicsLayer();
             var map = new Map({
                 basemap: "topo-vector",
                 layers: [graphicsLayer]
-
             });
 
             var view = new MapView({
@@ -40,6 +86,15 @@
                 layer: graphicsLayer
             });
 
+            var homeWidget = new Home({
+                view: view,
+                layer: graphicsLayer
+            });
+
+        /*    var layerList = new LayerList({
+                view: view
+            });
+        */
             var template = {
           // autocasts as new PopupTemplate()
                 title: "File name: {NAME}",
@@ -58,16 +113,6 @@
                     }
                 ]
             };
-            
-            /*  var _TileInfoTemplate = new InfoTemplate();
-            _TileInfoTemplate.setTitle("<b>2016 Tile Info</b>");
-            var _TileInfoContent =
-            "<div class=\"demographicInfoContent\">" +
-            "<div class='demographicNumericPadding'>${NAME}</div><div class=\"demographicInnerSpacing\"></div><br>" +
-            "<div class='demographicNumericPadding'>${ImageLink}</div><div class=\"demographicInnerSpacing\"></div><br>" +
-            "</div>";
-            _TileInfoTemplate.setContent("Tile:<br>${Name} , ${ImageLink}<br>" + _TileInfoContent); */
-
 
             // Feature layers
 
@@ -76,109 +121,93 @@
                 popupTemplate: template,
                 opacity: 0.2
             });
-            map.add(propertyLayer);
+            //map.add(propertyLayer);
 
             var blocksLayer = new FeatureLayer({
-                url: 'https://services6.arcgis.com/3VCE6mezZtwKJeIR/arcgis/rest/services/Imagery_2016_Index/FeatureServer/0',
-                popupTemplate: template,
+                /*url: 'https://services6.arcgis.com/3VCE6mezZtwKJeIR/arcgis/rest/services/TileIndex_LiDAR_2016_Coastal/FeatureServer',  */
+                url: 'https://services6.arcgis.com/3VCE6mezZtwKJeIR/ArcGIS/rest/services/TileIndex/FeatureServer/'+tileIndex,
                 opacity: 0.2
             });
             map.add(blocksLayer);
             // End feature layers
 
+            // Add widgets
             view.ui.add("buttonDiv", "bottom-right");
             view.ui.add(sketch, "top-right");
-            document.getElementById('selectTiles').onclick = function() {
-                validate();
-                //addEmailToArray();
-                //MergeArrays();
-                selectTiles(graphicsLayer, view, blocksLayer);
-            };
-        });
+            view.ui.add(homeWidget, "top-left");
 
+             // When select tiles button is pressed run email validation and tile select function
+            document.getElementById('selectTiles').onclick = function() {
+                if (document.emailForm.email.value == "" || document.emailForm.checkBox.checked == false){
+                    //console.log("no email");
+                    alert( "Please provide your Email address and agree to the terms of use.");
+                    document.emailForm.email.focus();
+                } 
+                else {
+                //console.log('email detected');
+                selectTiles(graphicsLayer, view, blocksLayer);
+                }
+            };
+
+            
         function selectTiles(gL,view,tileLayer){
-            //console.log("hello" + gL.graphics.length);
             var geom = gL.graphics.items[0].geometry;
             view.whenLayerView(tileLayer).then(function(layerView) {
-            // do something with the layerView
-                layerView.effect =  {
-                                    filter: { geometry: geom, spatialRelationship: "intersects" },
-                                    excludedEffect: "grayscale(0%) opacity(20%)",
-                                    includedEffect: "grayscale(0%) opacity(100%)"
-                                    }});
-     
-            tileLayer.queryFeatures( {geometry: geom,  spatialRelationship: "intersects", returnGeometry: true, outFields: ["ImageLink","NAME"]})
+            // Change layerView effects
+            layerView.effect =  {
+                                filter: { geometry: geom, spatialRelationship: "intersects" },
+                                excludedEffect: "grayscale(0%) opacity(20%)",
+                                includedEffect: "grayscale(0%) opacity(100%)"
+                                }});
+            
+            tileLayer.queryFeatures( {geometry: geom,  spatialRelationship: "intersects", returnGeometry: true, outFields: ["TILE_NAME","OBJECTID"]})
             .then(function(featureSet) {
 
+                // Add selected tilelayer features to array
                 var array1 = featureSet.features
-                //console.log("found feature count : " + array1.length);
-                //console.log(featureSet.features);
-                //console.log( JSON.stringify(featureSet.features) );
+                // Create new array to parse in selected tile names only
                 var callUrls = [];
                     featureSet.features.forEach(function (features) {
-                    callUrls.push(features.attributes["Name"]);
+                    callUrls.push(features.attributes["TILE_NAME"]);
                 });
-                //console.log(callUrls);
 
-                
-
+                // Start API call - Store variables that are to be sent and convert them to JSON objects
                 var xhr = new XMLHttpRequest();
                 var emailAddress = document.getElementById("email").value;
+                var featureLayer = "propertyLayer"
                 var jsonObject = new Object();
-                jsonObject.Tiles = callUrls;
                 jsonObject.Email = emailAddress;
-                
-                    xhr.open("POST", 'https://bentestcode.free.beeceptor.com', true);
-                    xhr.setRequestHeader('Content-Type', 'application/json');
+                jsonObject.Layer = featureLayer;
+                jsonObject.TileNames = callUrls;
+                jsonObject.blobPath = tileLayers.Layers[tileIndex].BlobPath;
+                jsonObject.blobContainer = tileLayers.Layers[tileIndex].container;
+
+                xhr.open("POST", "https://spatialclientzipandmove20191212055844.azurewebsites.net/api/Function1?code=9wFJaa48XMKgofXcaCwFMICkPgUhFFYYptHtVf1S4LauC6U7ccMVFQ==", true);
+                //xhr.open("POST", "http://localhost:7071/api/Function1", true);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.onreadystatechange = function() {
+                     if (xhr.readyState === 4) {
+
+                         document.getElementById("urlToFetch").innerHTML = "<a href='"+xhr.responseText+"'> Download File</a>";
+                        }
+                      }
                     xhr.send(JSON.stringify(jsonObject));
-                    //xhr.send(JSON.stringify({TileNames: callUrls}));
-                    //xhr.send(JSON.stringify({Names:callUrls,Email:emailAddressArray});
 
-                    //{'Names':JSON.stringify(callUrls),'Email':JSON.stringify(emailAddressArray)}
-                    //JSON.stringify({mycol:mycol,mycolval:mycolval,string:string}),
+                    document.getElementById("emailForm").reset();
+                    $("#ex2").modal();
+            });
+        };
+    });
 
-                //open popup of query result
-                view.popup.open({location: geom.centroid, features: featureSet.features,featureMenuOpen: true}); 
-                }); 
-        }
-            /*
+    /* ---- Modal page refresh when close ---- */
+    $(document).ready(function(){   
+        $('#ex2').on('hidden.bs.modal', function () {
+            document.getElementById("urlToFetch").innerHTML = "";
+                location.reload(true);
+            })
+    });
 
-            var myJsonString = JSON.stringify(featureSet.features);
-            alert (myJsonString);
-                var OutputJSON = featureSet.features;
-                OutputJSON.forEach(URLtoJSON);
-
-                function URLtoJSON(item) {
-                document.getElementById("demo").innerHTML += index + ":" + item + "<br>";
-            }*/
-
-        function validate() {
-    
-            if( document.emailForm.email.value == "" ) {
-                console.log("no email");
-                alert( "Please provide your Email address." );
-                document.emailForm.email.focus();
-                return false;
-            }
-            return( true );         
-        }
-
-      /*  function addEmailToArray() {
-            var emailAddressArray = [];
-            var emailAddress = document.getElementById("email").value;
-            emailAddressArray.push(emailAddress);
-            console.log(emailAddress);
-            console.log(emailAddressArray);
-            
-        }
-
-        function MergeArrays() {
-            var callToSend = callUrls.concat(emailAddressArray); 
-            console.log(callToSend);
-        }*/
-
-          
-
+        
     </script>
         <title>Townsville tiles picker</title>
         <style>
@@ -187,14 +216,18 @@
             #viewDiv {
                 padding: 0;
                 margin: 0;
-                height: 100%;
+                height: 97%;
                 width: 100%;
+                z-index:1000;
+                font-family: 'Open Sans', Tahoma, Verdana, Segoe, sans-serif;
+                font-size: 1em;
+                line-height: 1.4;
             }
             
             #buttonDiv {
                 background-color: white;
                 color: black;
-                padding: 6px;
+                padding: 10px;
                 max-width: 400px;
             }
 
@@ -222,23 +255,262 @@
             #selectTiles:hover {
                 background-color: #45a049;
             }
-        </style>
 
+            /* Style the footer */
+            #footer{
+                background: #07273b;
+                overflow: auto;
+                position: relative;
+            }
+            #footer-logo {
+                float: right;
+                width: 35%;
+                clear: none;
+                background: #fff;
+                display: block;
+                position: relative;
+                text-align: right;
+                height: 64px;
+                color: #00568e;
+                font-weight: 600;
+                font-size: 16px;
+                text-decoration: none;
+                text-transform: uppercase;
+                z-index: 1;
+                line-height: 59px;
+                margin:0px;
+                
+            }
+
+            #footer-logo:after {
+                content: "";
+                display: block;
+                position: absolute;
+                z-index: 0;
+                height: 100%;
+                background: #082130 url(https://www.townsville.qld.gov.au/__data/assets/image/0018/297/footer_fern.png?v=0.1.1) no-repeat 100% 0;
+                top: 0;
+                left: 0;
+                line-height: 64px;
+                background-color: #07273b;
+                width: 70%;
+                background-position: 0 0;
+                background-size: 100% 100%;
+            }
+
+            /* Style the header */
+            #header{
+                height: 70px;
+                background-color: #07273b;
+                border-bottom: 3px solid #59A3C8;
+                overflow: hidden;
+                z-index: 1;
+                width: 100%;
+            }
+
+           #header-logo {
+                float: left;
+                content: "";
+                display: block;
+                position: absolute;
+                height: 100%;
+                top: 0;
+                left: 0;
+                width: 70%;
+                background-position: 0 0;
+                background-size: 100% 100%;
+            }
+
+            .header-logo {
+                float: left;
+                width: 42px;
+                height: 50px;
+                margin-top: 7px;
+                margin-bottom: 5px;
+                margin-left: 10px;
+            }
+           
+            
+           /* #footer-anchor:before {
+                content: "";
+                display: block;
+                height: 59px;
+                position: relative;
+                z-index: -1;
+            }
+
+            .app-footer{
+                bottom:0;
+                left: 0;
+                position: absolute;
+                width: 100%;
+                color: #fff; 
+            }
+
+            .footer-row:before {
+                background: #fff;
+                bottom: 0;
+                content: " ";
+                display: block;
+                height: 59px;
+                left: auto;
+                position: absolute;
+                right: 0;
+                top: 0;
+                width: 35%;
+                z-index: 0;
+            }
+
+            .max-width-container {
+                max-width: 82.5em;
+                margin: 0 auto;
+            }
+
+            .disclaimer {
+                margin: 0;
+                padding: .5rem 0 0 0;
+                float: left;
+                width: 45%;
+                clear: none;
+                font-size: .75rem;
+            }
+
+            .footer-logo {
+                float: left;
+                width: 55%;
+                clear: none;
+                background: #fff;
+                display: block;
+                position: relative;
+                text-align: right;
+                height: 59px;
+                color: #00568e;
+                font-weight: 600;
+                font-size: 16px;
+                text-decoration: none;
+                text-transform: uppercase;
+                z-index: 1;
+                line-height: 59px;
+            }
+
+            .footer-logo:after {
+                content: "";
+                display: block;
+                position: absolute;
+                z-index: 0;
+                height: 100%;
+                background: #082130 url(https://www.townsville.qld.gov.au/__data/assets/image/0018/297/footer_fern.png?v=0.1.1) no-repeat 100% 0;
+                top: 0;
+                left: 0;
+                line-height: 64px;
+                background-color: #07273b;
+                width: 70%;
+                background-position: 0 0;
+                background-size: 100% 100%;
+            }
+
+            @media only screen and (max-width: 82.5em) {
+
+            .footer-row {
+                display: none;
+            }
+
+            .footer-mobile {
+                display: block;
+            }
+
+            .footer-row-1 {
+                background: #07273b;
+                height: 149px;
+                overflow: auto;
+                position: relative;
+            }
+
+            .disclaimer {
+                padding: 2em 1em;
+                width: 100%;
+                position: absolute;
+                bottom: 0;
+                }
+
+            #footer-anchor:before {
+                height: 249px;
+            }*/
+
+
+            
+
+        </style>
 </head>
 <body>
-    <div id="viewDiv"></div>
-        <div id="buttonDiv" class="esri-widget">
+
+    <!-- Modal -->
+
+    <div id="ex1" class="modal fade" role="dialog">
+        <div class="modal-dialog">
+
+
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">Townsville City Council terms and conditions</h4>
+                </div>
+                <div class="modal-body">
+                    <p>Thanks for clicking. This is where the T's & C's should go.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div id="ex2" class="modal fade" role="dialog">
+        <div class="modal-dialog">
+
+
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">Request Submitted</h4>
+                </div>
+                <div class="modal-body">
+                    <p>Please Wait .... <br />We are processing your selection. <br /><br />Thanks for using the Townsville City Council map tile picker.</p>
+                    <p id="urlToFetch"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    
+        <div id="header">
+            <img src= https://mitownsville.service-now.com/6d314e72db960450f819cae43a96190e.iix class="header-logo">
+        </div>
+        <div id="viewDiv">
+            <div id="buttonDiv" class="esri-widget">
                 <p>
-                    Select an area on the map, add your email address and click below to be sent a download link.
+                    Select an area on the map with the above drawing tools, add your email address, accept the T's & C's and click submit to be sent a download link for your selected area.
                 </p>
                 <form id="emailForm" name="emailForm">
-                    
                     <label for="email">Email address</label>
-                    <input type="text" id="email" name="emailaddress" required placeholder="Your email address..">
-                    <input type="checkbox" name="vehicle1" value="Bike"> Agree to TCC's terms of use<br>
-                  </form>
-                    <button id="selectTiles" idclass="btn-clear">Select Tiles</button>
-            </select>
+                    <input type="text" id="email" name="emailaddress" required placeholder="Your email address.." >
+                    <input type="checkbox" id="checkBox" required name="terms" value="true"> <a href="#ex1" data-toggle="modal">Agree to TCC's terms of use</a><br /><br />
+                    <label for="email">Select Tiles</label>
+                    <input type="button" id="selectTiles" value="Select Tiles">
+                </form>
+
+            </div>
         </div>
+
+        <div id="footer"><div id="footer-logo"></div></div>
+
+    <script>
+        document.getElementById("header").innerHTML = tileLayers.Layers[tileIndex].TileIndex;
+    </script>
 </body>
+
 </html>
